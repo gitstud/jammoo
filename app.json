@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "sdkVersion": "26.0.0",
+    "ios": {
+      "bundleIdentifier": "staticpage",
+      "publishBundlePath": "ios/staticpage/Supporting/shell-app.bundle",
+      "publishManifestPath": "ios/staticpage/Supporting/shell-app-manifest.json"
+    },
+    "android": {
+      "package": "staticpage"
+    },
+    "name": "staticpage",
+    "slug": "staticpage",
+    "version": "0.1.0",
+    "isDetached": true,
+    "detach": {
+      "scheme": "exp78763a7374fc47f9b18c1fef004bb4d9",
+      "iosExpoViewUrl": "https://s3.amazonaws.com/exp-exponent-view-code/ios-v2.4.4-sdk26.0.0-3bd935c7-cdd3-4002-8e44-4df857a675f2.tar.gz",
+      "androidExpoViewUrl": "https://s3.amazonaws.com/exp-exponent-view-code/android-v2.4.0-sdk26.0.0-e63d9209-070c-4118-b06b-c60e82da0b66.tar.gz"
+    }
+  }
+}
