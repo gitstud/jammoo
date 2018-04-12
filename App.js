@@ -39,41 +39,57 @@ export default class App extends React.Component {
   componentWillMount() {
     this._panResponder = PanResponder.create({
       // Ask to be the responder:
-      onStartShouldSetPanResponder: (evt, gestureState) => true,
-      onStartShouldSetPanResponderCapture: (evt, gestureState) => true,
+      // onStartShouldSetPanResponder: (evt, gestureState) => true,
+      // onStartShouldSetPanResponderCapture: (evt, gestureState) => true,
       onMoveShouldSetPanResponder: (evt, gestureState) => true,
       onMoveShouldSetPanResponderCapture: (evt, gestureState) => true,
 
       onPanResponderGrant: (evt, gestureState) => {
+        this.state.up.setOffset(this.state.up._value);
+        this.state.up.setValue(0);
+        this.setState({ isUp: true });
+
         // The gesture has started. Show visual feedback so the user knows
         // what is happening!
-        if (this.state.isUp) {
-          Animated.spring(this.state.up, { toValue: 0, duration: 1000 }).start();
-        } else {
-          Animated.spring(this.state.up, { toValue: 1, duration: 1000 }).start();
-        }
-        this.setState({ isUp: !this.state.isUp });
+        // if (this.state.isUp) {
+        //   Animated.spring(this.state.up, { toValue: 0, duration: 1000 }).start();
+        // } else {
+        //   Animated.spring(this.state.up, { toValue: 1, duration: 1000 }).start();
+        // }
+        // this.setState({ isUp: !this.state.isUp });
         // gestureState.d{x,y} will be set to zero now
       },
-      onPanResponderMove: (evt, gestureState) => {
-        // The most recent move distance is gestureState.move{X,Y}
-        // The accumulated gesture distance since becoming responder is
-        // gestureState.d{x,y}
-      },
+      // onPanResponderMove: (evt, gestureState) => {
+      //   console.log(this.state.up.y);
+      //   // console.log(gestureState);
+      // },
+      onPanResponderMove: Animated.event([
+        null, {dy: this.state.up }
+      ]),
       onPanResponderTerminationRequest: (evt, gestureState) => true,
-      onPanResponderRelease: (evt, gestureState) => {
-        // The user has released all touches while this view is the
-        // responder. This typically means a gesture has succeeded
+      onPanResponderRelease: (e, gestureState) => {
+        // Flatten the offset to avoid erratic behavior
+        console.log("HEY FUCKERS", this.state.up);
+        console.log(gestureState)
+        this.state.up.flattenOffset();
+        if (gestureState.dy < 0) {
+          Animated.timing(this.state.up, { toValue: -400, duration: 250 }).start();
+          this.setState({ isUp: true });
+        } else {
+          Animated.timing(this.state.up, { toValue: 0, duration: 250 }).start();
+          this.setState({ isUp: false });
+        }
       },
       onPanResponderTerminate: (evt, gestureState) => {
         // Another component has become the responder, so this gesture
+        console.log('hello worldx');
         // should be cancelled
         return false
       },
       onShouldBlockNativeResponder: (evt, gestureState) => {
         // Returns whether this component should block native components from becoming the JS
         // responder. Returns true by default. Is currently only supported on android.
-        return !this.state.scrolling;
+        return false;
       },
     });
 
@@ -81,17 +97,21 @@ export default class App extends React.Component {
 
     this.bounce = setInterval(function() {
       Animated.sequence([
-        Animated.timing(self.state.b, { toValue: 1, duration: 200 }),
-        Animated.timing(self.state.b, { toValue: 0, duration: 200 })
+        Animated.timing(self.state.b, { toValue: 1, duration: 300 }),
+        Animated.timing(self.state.b, { toValue: 0, duration: 350 })
       ]).start();
     }, 5000)
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.bounce);
   }
 
   render() {
     const { isUp, itemArray, imagePile, scrollListUp } = this.state;
     const up = this.state.up.interpolate({
-      inputRange: [0, 1],
-      outputRange: ['78%', '20%'],
+      inputRange: [-600, -400, 0, 300],
+      outputRange: ['20%', '20%', '78%', '78%'],
     });
 
     const bounce = this.state.b.interpolate({
@@ -100,10 +120,13 @@ export default class App extends React.Component {
     });
 
     return (
-      <View style={[styles.container]}>
+      <View style={styles.container}>
         <StatusBar hidden={true} />
         {!scrollListUp && (
-          <ImageBackground source={require('./static/blueAudi.jpg')} style={[styles.container, {height: isUp ? '30%' : '100%'}]}>
+          <ImageBackground
+            source={require('./static/blueAudi.jpg')}
+            style={[styles.container, {height: isUp ? '30%' : '100%'}]}
+          >
             <View style={styles.navBar}>
               <Text style={styles.navItem}>Back</Text>
               <Text style={styles.navItem}>Find</Text>
@@ -120,28 +143,54 @@ export default class App extends React.Component {
           >
             <View style={styles.navBar}>
               <Text style={styles.navItem}>Back</Text>
-              <Image source={require('./static/driverProfile.jpg')} style={styles.profileImageSmall} />
-              <Text style={{color: 'white', fontSize: 25, fontWeight: 'bold'}}>Lorem ispum...</Text>
+              <Image
+                source={require('./static/driverProfile.jpg')}
+                style={styles.profileImageSmall}
+              />
+              <Text
+                style={{
+                  color: 'white',
+                  fontSize: 25,
+                  fontWeight: 'bold'
+                }}
+              >
+                Lorem ispum...
+              </Text>
               <Text style={styles.navItem}>Find</Text>
             </View>
           </ImageBackground>
         )}
-        <Animated.View style={[scrollListUp ? styles.openView : styles.closedView, { top: isUp ? scrollListUp ? '10%' : up : bounce }]}>
+        <Animated.View
+          style={[
+            scrollListUp ? styles.openView :
+            styles.closedView, {
+              top: isUp ? scrollListUp ? '10%' : up : bounce
+          }]}
+        >
           <View>
             <View style={styles.slideContainer}>
               {!scrollListUp && (
-                <View {...this._panResponder.panHandlers} style={{width: '100%', height: 30}}>
+                <View
+                  {...this._panResponder.panHandlers}
+                  style={{
+                    width: '100%',
+                    height: 30
+                  }}
+                >
                   <View style={styles.slideContainerHeader}>
-                    <Image source={require('./static/driverProfile.jpg')} style={styles.profileImage} />
-                    <View>
+                    <Image
+                      source={require('./static/driverProfile.jpg')}
+                      style={styles.profileImage}
+                    />
+                  <View style={{marginTop: 2, height: 15}}>
                       <Text style={{fontWeight: 'bold'}}>120</Text>
                       <Text>lore</Text>
                     </View>
-                    <View style={{borderLeftWidth: 1, borderLeftColor: 'black', paddingLeft: 10}}>
+                    <View style={{borderLeftWidth: 1, borderLeftColor: 'black', paddingLeft: 10, marginTop: 2, height: 15}}>
                       <Text style={{fontWeight: 'bold'}}>1543</Text>
                       <Text>ipsum</Text>
                     </View>
-                    <View style={{borderLeftWidth: 1, borderLeftColor: 'black', paddingLeft: 10}}>
+                    <View style={{borderLeftWidth: 1, borderLeftColor: 'black', paddingLeft: 10, marginTop: 2, height: 15}}>
                       <Text style={{fontWeight: 'bold'}}>825</Text>
                       <Text>dolor</Text>
                     </View>
@@ -156,7 +205,9 @@ export default class App extends React.Component {
               <View style={[styles.slideContainerScrollView, scrollListUp ? { paddingTop: 0 } : {}]}>
                 {!scrollListUp && (
                   <View style={styles.buttonStars}>
-                    <TouchableOpacity style={styles.button}><Text style={{color: 'white'}}>Lorem</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.button}>
+                      <Text style={{color: 'white'}}>Lorem</Text>
+                    </TouchableOpacity>
                     <Text>Star</Text>
                     <Text>Star</Text>
                   </View>
@@ -180,8 +231,17 @@ export default class App extends React.Component {
                 <View style={styles.swipeList}>
                   {!scrollListUp && (
                     <View style={styles.swipeHeader}>
-                      <Text style={{color: !this.state.endReached ? 'black' : 'lightgrey' }}>grid</Text>
-                      <Text style={{paddingLeft: 10, color: this.state.endReached ? 'black' : 'lightgrey'}}>star</Text>
+                      <Text
+                        style={{
+                          color: !this.state.endReached ? 'black' :
+                          'lightgrey'
+                        }}>grid</Text>
+                      <Text
+                        style={{
+                          paddingLeft: 10,
+                          color: this.state.endReached ? 'black' :
+                          'lightgrey'
+                        }}>star</Text>
                     </View>
                   )}
                   <ScrollView
