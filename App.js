@@ -11,6 +11,7 @@ import {
   Image,
   TouchableOpacity,
   FlatList,
+  Dimensions,
 } from 'react-native';
 
 let itemArray = [];
@@ -33,7 +34,15 @@ export default class App extends React.Component {
     isUp: false,
     scrollListUp: false,
     up: new Animated.Value(0),
+    listView: new Animated.Value(0),
     b: new Animated.Value(0),
+    height: 500,
+    headerHeight: 100,
+  }
+
+  componentDidMount() {
+    const { height } = Dimensions.get('window');
+    this.setState({ height });
   }
 
   componentWillMount() {
@@ -59,18 +68,12 @@ export default class App extends React.Component {
         // this.setState({ isUp: !this.state.isUp });
         // gestureState.d{x,y} will be set to zero now
       },
-      // onPanResponderMove: (evt, gestureState) => {
-      //   console.log(this.state.up.y);
-      //   // console.log(gestureState);
-      // },
       onPanResponderMove: Animated.event([
         null, {dy: this.state.up }
       ]),
       onPanResponderTerminationRequest: (evt, gestureState) => true,
       onPanResponderRelease: (e, gestureState) => {
         // Flatten the offset to avoid erratic behavior
-        console.log("HEY FUCKERS", this.state.up);
-        console.log(gestureState)
         this.state.up.flattenOffset();
         if (gestureState.dy < 0) {
           Animated.timing(this.state.up, { toValue: -400, duration: 250 }).start();
@@ -82,7 +85,50 @@ export default class App extends React.Component {
       },
       onPanResponderTerminate: (evt, gestureState) => {
         // Another component has become the responder, so this gesture
-        console.log('hello worldx');
+        // should be cancelled
+        return false
+      },
+      onShouldBlockNativeResponder: (evt, gestureState) => {
+        // Returns whether this component should block native components from becoming the JS
+        // responder. Returns true by default. Is currently only supported on android.
+        return false;
+      },
+    });
+
+
+    this._listResponder = PanResponder.create({
+      // Ask to be the responder:
+      // onStartShouldSetPanResponder: (evt, gestureState) => true,
+      // onStartShouldSetPanResponderCapture: (evt, gestureState) => true,
+      onMoveShouldSetPanResponder: (evt, gestureState) => true,
+      onMoveShouldSetPanResponderCapture: (evt, gestureState) => true,
+
+      onPanResponderGrant: (evt, gestureState) => {
+        this.state.listView.setOffset(this.state.listView._value);
+        this.state.listView.setValue(0);
+        // this.setState({ isUp: true });
+
+        // The gesture has started. Show visual feedback so the user knows
+        // gestureState.d{x,y} will be set to zero now
+      },
+      onPanResponderMove: Animated.event([
+        null, {dx: this.state.listView }
+      ]),
+      onPanResponderTerminationRequest: (evt, gestureState) => true,
+      onPanResponderRelease: (e, gestureState) => {
+        // Flatten the offset to avoid erratic behavior
+        this.state.listView.flattenOffset();
+        if (gestureState.dx > 0) {
+          Animated.timing(this.state.listView, { toValue: 400, duration: 250 }).start();
+          this.setState({ endReached: true });
+        } else {
+          Animated.timing(this.state.listView, { toValue: 0, duration: 250 }).start();
+          this.setState({ endReached: false });
+        }
+
+      },
+      onPanResponderTerminate: (evt, gestureState) => {
+        // Another component has become the responder, so this gesture
         // should be cancelled
         return false
       },
@@ -107,11 +153,22 @@ export default class App extends React.Component {
     clearInterval(this.bounce);
   }
 
+  onLayout = (e) => {
+    this.setState({
+      headerHeight: e.nativeEvent.layout.height,
+    })
+  }
+
   render() {
-    const { isUp, itemArray, imagePile, scrollListUp } = this.state;
+    const { isUp, itemArray, imagePile, scrollListUp, endReached } = this.state;
     const up = this.state.up.interpolate({
       inputRange: [-600, -400, 0, 300],
       outputRange: ['20%', '20%', '78%', '78%'],
+    });
+
+    const listView = this.state.listView.interpolate({
+      inputRange: [-600, -400, -200, 0, 150, 300],
+      outputRange: ['-110%', '-110%', '-110%', '-110%', '0%', '0%'],
     });
 
     const bounce = this.state.b.interpolate({
@@ -135,6 +192,7 @@ export default class App extends React.Component {
         )}
         {scrollListUp && (
           <ImageBackground
+            onLayout={this.onLayout}
             source={require('./static/blueAudi.jpg')}
             style={[
               styles.container,
@@ -217,7 +275,6 @@ export default class App extends React.Component {
                     <FlatList
                       data={imagePile}
                       keyExtractor={item => item.key}
-                      onScroll={(e) => this.setState({endReached: e.nativeEvent.contentOffset.x > 50})}
                       renderItem={({item}) => (
                         <View style={{paddingRight: 10}}>
                           <Image source={item.img} style={{height: 50, width: 50, borderRadius: 6}} />
@@ -230,7 +287,7 @@ export default class App extends React.Component {
                 )}
                 <View style={styles.swipeList}>
                   {!scrollListUp && (
-                    <View style={styles.swipeHeader}>
+                    <Animated.View style={styles.swipeHeader} {...this._listResponder.panHandlers}>
                       <Text
                         style={{
                           color: !this.state.endReached ? 'black' :
@@ -242,19 +299,46 @@ export default class App extends React.Component {
                           color: this.state.endReached ? 'black' :
                           'lightgrey'
                         }}>star</Text>
-                    </View>
+                    </Animated.View>
                   )}
-                  <ScrollView
-                    style={{width: '100%', paddingBottom: 50}}
-                    onScroll={(e) => {this.setState({scrollListUp: e.nativeEvent.contentOffset.y > 50})}}
-                    scrollEventThrottle={16}
-                  >
-                    {isUp && itemArray.map(v => (
-                      <View style={styles.arrayItem} key={v.id}>
-                        <Text>{v.text}</Text>
+                  <View style={{width: '100%', position: 'relative'}}>
+                    <Animated.View style={{width: '100%', paddingBottom: 50, position: 'absolute', left: listView}}>
+                      <View
+                        style={{
+                          height: this.state.height - this.state.headerHeight,
+                          width: endReached ? '100%' : '210%',
+                          display: 'flex',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingBottom: 5,
+                        }}
+                      >
+                        <ScrollView
+                          style={{paddingRight: '5%'}}
+                          onScroll={(e) => {this.setState({scrollListUp: e.nativeEvent.contentOffset.y > 50})}}
+                          scrollEventThrottle={16}
+                        >
+                          {isUp && itemArray.map(v => (
+                            <View style={styles.arrayItem} key={v.id}>
+                              <Text>{v.text}</Text>
+                            </View>
+                          ))}
+                        </ScrollView>
+                        {!endReached && (
+                          <ScrollView
+                            onScroll={(e) => {this.setState({scrollListUp: e.nativeEvent.contentOffset.y > 50})}}
+                            scrollEventThrottle={16}
+                          >
+                            {isUp && itemArray.map(v => (
+                              <View style={styles.arrayItem} key={v.id}>
+                                <Text>{v.text}</Text>
+                              </View>
+                            ))}
+                          </ScrollView>
+                        )}
                       </View>
-                    ))}
-                  </ScrollView>
+                    </Animated.View>
+                  </View>
                 </View>
               </View>
             </View>
@@ -363,7 +447,10 @@ const styles = StyleSheet.create({
     paddingRight: 20,
   },
   slideContainerScrollView: {
+    width: '100%',
     paddingTop: 100,
+    paddingLeft: '10%',
+    paddingRight: '10%',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -383,7 +470,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   flatList: {
-    width: '70%',
+    width: '100%',
     display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
